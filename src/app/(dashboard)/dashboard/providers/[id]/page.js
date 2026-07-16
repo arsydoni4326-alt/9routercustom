@@ -1380,7 +1380,44 @@ export default function ProviderDetailPage() {
         <Card>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-semibold">Connections</h2>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+               {/* <Button
+                 size="sm"
+                 icon="add"
+                 onClick={triggerAddConnection}
+               >
+                 {isCompatible ? "Add API Key" : (providerId === "iflow" ? "OAuth" : "Add Connection")}
+               </Button> */}
+               {hasDualAuthModes ? (
+                <>
+                  <Button
+                    size="sm"
+                    icon="lock"
+                    variant="secondary"
+                    onClick={triggerOAuthConnection}
+                    className="w-full sm:w-auto"
+                  >
+                    {oauthConnectionLabel}
+                  </Button>
+                  <Button
+                    size="sm"
+                    icon="key"
+                    onClick={triggerApiKeyConnection}
+                    className="w-full sm:w-auto"
+                  >
+                    {apiKeyConnectionLabel}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  icon="add"
+                  onClick={triggerAddConnection}
+                  className="w-full sm:w-auto"
+                >
+                  Add
+                </Button>
+              )}
               {connections.length > 0 && proxyPools.length > 0 && (
                 <Button
                   size="sm"
@@ -1553,36 +1590,6 @@ export default function ProviderDetailPage() {
                       className="w-full sm:w-auto"
                     >
                       {translate("Bulk Add")}
-                    </Button>
-                  )}
-                  {hasDualAuthModes ? (
-                    <>
-                      <Button
-                        size="sm"
-                        icon="lock"
-                        variant="secondary"
-                        onClick={triggerOAuthConnection}
-                        className="w-full sm:w-auto"
-                      >
-                        {oauthConnectionLabel}
-                      </Button>
-                      <Button
-                        size="sm"
-                        icon="key"
-                        onClick={triggerApiKeyConnection}
-                        className="w-full sm:w-auto"
-                      >
-                        {apiKeyConnectionLabel}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      icon="add"
-                      onClick={triggerAddConnection}
-                      className="w-full sm:w-auto"
-                    >
-                      Add
                     </Button>
                   )}
                 </div>
