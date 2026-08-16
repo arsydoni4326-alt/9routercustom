@@ -135,17 +135,21 @@ Main flow modules:
 
 ## 3) Persistence Layer
 
+State is stored in **SQLite**, not `db.json`. `src/lib/localDb.js` is now a backward-compat shim re-exporting `src/lib/db/index.js`.
+
 Primary state DB:
 
-- `src/lib/localDb.js`
-- file: `${DATA_DIR}/db.json` (or `~/.9router/db.json` when `DATA_DIR` is unset)
+- `src/lib/db/index.js` (per-entity logic in `src/lib/db/repos/*`, schema/migrations in `src/lib/db/migrations/`)
+- driver fallback chain (`src/lib/db/driver.js`): `bun:sqlite` → `better-sqlite3` (optionalDependencies) → `node:sqlite` (Node ≥22.5) → `sql.js` (pure-JS fallback, always works)
+- file: `${DATA_DIR}/db/data.sqlite` (or `~/.9router/db/data.sqlite` when `DATA_DIR` is unset; path resolution via `src/lib/db/paths.js`)
+- auto backups: `${DATA_DIR}/db/backups/`
 - entities: providerConnections, providerNodes, modelAliases, combos, apiKeys, settings, pricing
 
-Usage DB:
+Usage DB (separate from main state DB):
 
 - `src/lib/usageDb.js`
 - files: `~/.9router/usage.json`, `~/.9router/log.txt`
-- note: currently independent from `DATA_DIR`
+- note: currently independent from `DATA_DIR` (see Known Architectural Notes)
 
 ## 4) Auth + Security Surfaces
 
@@ -377,10 +381,11 @@ erDiagram
 
 Physical storage files:
 
-- main state: `${DATA_DIR}/db.json` (or `~/.9router/db.json`)
-- usage stats: `~/.9router/usage.json`
-- request log lines: `~/.9router/log.txt`
-- optional translator/request debug sessions: `<repo>/logs/...`
+- main state: `${DATA_DIR}/db/data.sqlite` (or `~/.9router/db/data.sqlite` when `DATA_DIR` is unset)
+- auto backups: `${DATA_DIR}/db/backups/`
+- usage stats: `~/.9router/usage.json` (does not follow `DATA_DIR`)
+- request log lines: `~/.9router/log.txt` (does not follow `DATA_DIR`)
+- optional translator/request debug sessions: `<repo>/logs/...` when `ENABLE_REQUEST_LOGS=true`
 
 ## Deployment Topology
 
@@ -394,7 +399,7 @@ flowchart LR
     subgraph ContainerOrProcess[9Router Runtime]
         Next[Next.js Server\nPORT=20128]
         Core[SSE Core + Executors]
-        MainDB[(db.json)]
+        MainDB[(data.sqlite)]
         UsageDB[(usage.json/log.txt)]
     end
 
@@ -444,7 +449,10 @@ flowchart LR
 
 ### Persistence
 
-- `src/lib/localDb.js`: persistent config/state
+- `src/lib/db/index.js`: SQLite-backed persistent config/state (driver fallback chain in `src/lib/db/driver.js`)
+- `src/lib/db/repos/*`: per-entity data access
+- `src/lib/db/migrations/`: schema and migrations
+- `src/lib/localDb.js`: backward-compat shim (re-exports `src/lib/db/index.js`)
 - `src/lib/usageDb.js`: usage history and rolling request logs
 
 ## Provider Executor Coverage
@@ -508,7 +516,8 @@ Translations are selected dynamically based on source payload shape and provider
 ## 5) Data Integrity
 
 - DB shape migration/repair for missing keys
-- corrupt JSON reset safeguards for localDb and usageDb
+- SQLite schema migrations with automatic backup before schema change
+- usage.json/log.txt corrupt-file reset safeguards
 
 ## Observability and Operational Signals
 
@@ -542,10 +551,10 @@ Environment variables actively used by code:
 
 ## Known Architectural Notes
 
-1. `usageDb` currently stores under `~/.9router` and does not follow `DATA_DIR`.
+1. `usageDb` stores under `~/.9router` and does not follow `DATA_DIR`; only main state follows `DATA_DIR`.
 2. `/api/v1/route.js` returns a static model list and is not the main models source used by `/v1/models`.
 3. Request logger writes full headers/body when enabled; treat log directory as sensitive.
-4. Cloud behavior depends on correct `NEXT_PUBLIC_BASE_URL` and cloud endpoint reachability.
+4. Cloud sync runtime prioritizes server-side `BASE_URL`/`CLOUD_URL`; `NEXT_PUBLIC_BASE_URL`/`NEXT_PUBLIC_CLOUD_URL` remain supported for compatibility/UI.
 
 ## Operational Verification Checklist
 
