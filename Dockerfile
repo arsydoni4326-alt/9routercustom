@@ -17,7 +17,8 @@ RUN npm run build
 
 FROM ${BUN_IMAGE} AS runner
 WORKDIR /app
-
+ARG APP_VERSION=v0.0.0
+ARG APP_COMMIT=unknown
 LABEL org.opencontainers.image.title="9router"
 
 ENV NODE_ENV=production
