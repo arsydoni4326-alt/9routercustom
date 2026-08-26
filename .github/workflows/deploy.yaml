@@ -59,17 +59,19 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{version}}
+            type=ref,event=tag
             type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
 
-      # Step 5: Build the Dockerfile and push it to GHCR
+      # Step 6: Build the Dockerfile and push it to GHCR
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          file: ./Dockerfile
+          file: ./Dockerfile-ghcr
           build-args: |
             APP_VERSION=${{ steps.git_meta.outputs.VERSION }}
             APP_COMMIT=${{ steps.git_meta.outputs.COMMIT }}
