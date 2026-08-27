@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
 ARG BUN_IMAGE=oven/bun:1.3.2-alpine
+ARG NODE_IMAGE=node:22-alpine
 FROM ${BUN_IMAGE} AS base
 WORKDIR /app
 
@@ -15,7 +16,7 @@ COPY . ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-FROM ${BUN_IMAGE} AS runner
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ARG APP_VERSION=v0.0.0
 ARG APP_COMMIT=unknown
@@ -42,11 +43,11 @@ COPY --from=builder /app/node_modules/next ./node_modules/next
 # so the last-resort DB driver would abort with ENOENT on the missing binary.
 COPY --from=builder /app/node_modules/sql.js ./node_modules/sql.js
 
-RUN mkdir -p /app/data && chown -R bun:bun /app
+RUN mkdir -p /app/data && chown -R node:node /app
 
 # Fix permissions at runtime (handles mounted volumes)
 RUN apk --no-cache upgrade && apk --no-cache add su-exec && \
-  printf '#!/bin/sh\nchown -R bun:bun /app/data 2>/dev/null\nexec su-exec bun "$@"\n' > /entrypoint.sh && \
+  printf '#!/bin/sh\nchown -R node:node /app/data 2>/dev/null\nexec su-exec node "$@"\n' > /entrypoint.sh && \
   chmod +x /entrypoint.sh
 
 EXPOSE 20128

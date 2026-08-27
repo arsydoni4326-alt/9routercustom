@@ -39,6 +39,10 @@ Phase 1.1 — baseline test health documentation and plan (executed). Then ongoi
 - `tests/` suite is not all-green on a plain checkout by design — see ROADMAP 1.1 / SPECIFICATION §5.3.
 - `cloud/` worker dir referenced by some tests is not in this repo.
 
+## Completed Work (2026-08-27)
+
+- **Fixed Docker "Expected CommonJS module to have a function wrapper" error.** Root cause: `oven/bun:1.3.2-alpine` provides a Bun shim for `node`, not real Node.js. Bun 1.3.2 has a known CJS module loader bug with Next.js 16 webpack output (auto-generated middleware from `rewrites()` config). Fix: switched runner stage in both `Dockerfile` and `Dockerfile-repository` from `oven/bun` to `node:22-alpine` (real Node.js). Builder stage unchanged (still uses Bun Alpine + apk-installed nodejs/npm). Also fixed `Dockerfile-repository` CMD from `bun server.js` to `node custom-server.js` and added missing `custom-server.js` COPY.
+
 ## Pending Work
 
 - [x] Phase 1.1: `docs/TESTING.md` created (baseline health + plan).
