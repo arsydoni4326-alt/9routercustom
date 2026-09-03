@@ -84,4 +84,6 @@ graphify-out/*
 .codegraph/
 .PR/
 .next-analyze/*
-just-trigger
+
+# Kiro local workspace state
+.kiro/
