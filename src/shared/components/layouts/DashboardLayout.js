@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useNotificationStore } from "@/store/notificationStore";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
+import UpdateNotificationPopup from "../UpdateNotificationPopup";
 
 function getToastStyle(type) {
   if (type === "success") {
@@ -33,9 +34,39 @@ function getToastStyle(type) {
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const lastNotifiedVersionRef = useRef(null);
   const pathname = usePathname();
   const notifications = useNotificationStore((state) => state.notifications);
   const removeNotification = useNotificationStore((state) => state.removeNotification);
+
+  // Update popup notifications. The server pushes an "update" event via SSE
+  // whenever an incoming proxy task finds a newer build on the custom repo.
+  useEffect(() => {
+    let es;
+    try {
+      es = new EventSource("/api/notifications/stream");
+    } catch {
+      return;
+    }
+    const onUpdate = (e) => {
+      try {
+        const info = JSON.parse(e.data);
+        // Only (re)show the popup for a *new* version, so dismissing it for the
+        // same build is respected until the fork repo bumps again.
+        if (info?.hasUpdate && info.latestVersion !== lastNotifiedVersionRef.current) {
+          setUpdateInfo(info);
+          lastNotifiedVersionRef.current = info.latestVersion;
+        }
+      } catch {
+        /* ignore malformed payload */
+      }
+    };
+    es.addEventListener("update", onUpdate);
+    return () => {
+      es.close();
+    };
+  }, []);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
@@ -68,6 +99,11 @@ export default function DashboardLayout({ children }) {
           );
         })}
       </div>
+      {/* Update popup notification (pushed by incoming tasks) */}
+      {updateInfo && !updateDismissed && (
+        <UpdateNotificationPopup updateInfo={updateInfo} onClose={() => setUpdateDismissed(true)} />
+      )}
+
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
