@@ -35,13 +35,14 @@ function getToastStyle(type) {
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
   const lastNotifiedVersionRef = useRef(null);
   const pathname = usePathname();
   const notifications = useNotificationStore((state) => state.notifications);
   const removeNotification = useNotificationStore((state) => state.removeNotification);
 
   // Update popup notifications. The server pushes an "update" event via SSE
-  // whenever an incoming proxy task finds a newer build on the custom repo.
+  // whenever a newer build/tag is found on the custom fork repo.
   useEffect(() => {
     let es;
     try {
@@ -57,6 +58,7 @@ export default function DashboardLayout({ children }) {
         if (info?.hasUpdate && info.latestVersion !== lastNotifiedVersionRef.current) {
           setUpdateInfo(info);
           lastNotifiedVersionRef.current = info.latestVersion;
+          setUpdateDismissed(false);
         }
       } catch {
         /* ignore malformed payload */
@@ -99,7 +101,7 @@ export default function DashboardLayout({ children }) {
           );
         })}
       </div>
-      {/* Update popup notification (pushed by incoming tasks) */}
+      {/* Update popup notification (pushed when a newer build/tag is detected) */}
       {updateInfo && !updateDismissed && (
         <UpdateNotificationPopup updateInfo={updateInfo} onClose={() => setUpdateDismissed(true)} />
       )}

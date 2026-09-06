@@ -115,6 +115,17 @@ docker run --rm -p 20128:20128 \
   9router
 ```
 
+### Minimal Node-only image
+
+`Dockerfile` is a two-stage, Bun-free build: both stages use `node:22-alpine`. The runtime never uses Bun —
+the DB driver chain runs `better-sqlite3` → `node:sqlite` (Node ≥ 22.5) → `sql.js`. Native build tools are not
+installed; `better-sqlite3` is an optionalDependency and is skipped when no musl prebuild is available.
+
+The final image runs as root (no `su-exec`/entrypoint), keeps `DATA_DIR=/app/data`, and only copies the
+standalone output plus the runtime bits Next's tracing omits (`src/mitm`, `open-sse`, `node-forge`,
+`node-machine-id`, and the full `sql.js` package for its wasm binary). Named or bind-mounted data volumes stay
+writable under root.
+
 ## Publish (automatic via CI)
 
 Push a git tag `v*` → GitHub Actions builds multi-platform (amd64+arm64) and pushes to:
