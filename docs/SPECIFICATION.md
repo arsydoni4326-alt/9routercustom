@@ -1,6 +1,6 @@
 # 9Router Specification
 
-_Last updated: 2026-08-16_
+_Last updated: 2026-09-06_
 
 This document describes the functional and technical requirements of **9Router** (`9router-app`), the local AI routing gateway. It complements `docs/ARCHITECTURE.md` (how the system is built) and `docs/ROADMAP.md` (where it is going).
 
@@ -123,6 +123,16 @@ Auth: session cookie (JWT signed with `JWT_SECRET`), first-login password from `
 - **Tunnels**: Cloudflare (`cloudflared`) and Tailscale manager modules for remote access; non-blocking probes.
 - **Proxy pools**: Cloudflare Workers deployer + Deno Deploy relays for pool routing; auto-rotate strategy for no-auth providers.
 
+### 2.9 Update Notification (custom fork popup)
+
+This build does **not** check the public npm registry for updates. Instead:
+
+- **Source of truth**: the latest **git tag** published on the custom fork repository `https://github.com/arsydoni4326-alt/9routercustom.git`. The GitHub tags API (newest-first) supplies the latest tag; suffixed custom tags (e.g. `v0.5.66-arsydoni4326-alt`) compare by their leading numeric version.
+- **Trigger**: the *latest incoming tag*. A lightweight server-side poller (`src/lib/updateNotifier.js`) checks the tags API every 15 min; the same throttled check runs when the dashboard opens. A new (newer) tag is what triggers the notification — not proxy traffic.
+- **Delivery**: when a newer tag is found, an `update` event is broadcast over SSE (`/api/notifications/stream`) to every open dashboard client.
+- **UI**: the dashboard (`DashboardLayout`) subscribes to the SSE stream and renders an update popup (`UpdateNotificationPopup`) with the install command and the existing copy + shutdown flow (`/api/version/shutdown`). The old inline sidebar "New version available" block was removed in favour of the popup.
+- **Manual check**: `GET /api/version` still works and returns `{ currentVersion, latestVersion, hasUpdate, source }` sourced from the fork repo's tags (throttled by the same 15-min cooldown).
+
 ---
 
 ## 3. Non-Functional Requirements
@@ -231,6 +241,7 @@ Auth: session cookie (JWT signed with `JWT_SECRET`), first-login password from `
 - `open-sse/*` — provider-agnostic routing/translation engine: `handlers/chatCore.js`, `executors/*`, `translator/*` (registers via side effect; new translators MUST be imported in `open-sse/translator/index.js`), `providers/registry/*` (auto-generated index — regenerate, don't hand-edit), `rtk/*` (fail-open token savers), `config/`, `services/`, `utils/`
 - `cli/` — separate npm package (`9router`): launcher, tray, own version/build
 - `src/lib/db/` — SQLite layer (driver.js, paths.js, repos/*, migrations/*)
+- `src/lib/updateNotifier.js` — custom-fork update check (latest git tag) + SSE broadcast; 15-min poller
 - `src/lib/usageDb.js` — usage + log persistence
 - `src/mitm/` — MITM proxy child process
 - `tests/` — independent vitest ESM package (not wired into root `npm test`)

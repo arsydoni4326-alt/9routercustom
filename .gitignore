@@ -87,3 +87,4 @@ graphify-out/*
 
 # Kiro local workspace state
 .kiro/
+session.md
