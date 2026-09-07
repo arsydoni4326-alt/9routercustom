@@ -3,6 +3,8 @@
 # driver chain runs better-sqlite3 → node:sqlite (Node >= 22.5) → sql.js under Node.
 FROM node:22-alpine AS builder
 WORKDIR /app
+# CN mirror for apk (used by builder and runner stages)
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories
 
 # Install deps first for layer caching. Native build tools are NOT required:
 # better-sqlite3 is an optionalDependency with musl prebuilds (skipped when
