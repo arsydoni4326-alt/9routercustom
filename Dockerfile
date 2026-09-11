@@ -12,7 +12,7 @@ RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories
 # musl prebuilds or WASM.
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
-  npm install
+  npm ci
 
 COPY . ./
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -47,5 +47,9 @@ COPY --from=builder /app/node_modules/sql.js ./node_modules/sql.js
 RUN mkdir -p /app/data
 
 EXPOSE 20128
+
+# Health: Next serves /api/health (dashboardGuard public path).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:20128/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "custom-server.js"]

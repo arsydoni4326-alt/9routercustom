@@ -10,6 +10,16 @@ import { APP_CONFIG } from "@/shared/constants/config";
 import { LOCALE_COOKIE, normalizeLocale } from "@/i18n/config";
 import { LOCALE_FLAGS } from "@/shared/constants/locales";
 
+function memoryLine(m) {
+  if (!m) return "";
+  const fb = m.inMemory?.freebuff || {};
+  return [
+    `DB: ${m.dbPath || "-"} (${m.dbSizeMB || "-"})`,
+    `Data dir: ${m.dataDirSizeMB || "-"}`,
+    `In-memory: fitness=${m.inMemory?.fitnessPools ?? 0} pool(s) · geo=${m.inMemory?.geoPools ?? 0} pool(s) · freebuff sessions=${fb.sessions ?? 0}, locks=${fb.modelLocks ?? 0}, pool-limits=${fb.poolLimits ?? 0}`,
+  ].join("\n");
+}
+
 function getLocaleFromCookie() {
   if (typeof document === "undefined") return "en";
   const cookie = document.cookie
@@ -72,6 +82,8 @@ export default function ProfilePage() {
   const certFileRef = useRef(null);
 
   const importFileRef = useRef(null);
+  const [memoryInfo, setMemoryInfo] = useState(null);
+  const [memoryLoading, setMemoryLoading] = useState(false);
   const [proxyForm, setProxyForm] = useState({
     outboundProxyEnabled: false,
     outboundProxyUrl: "",
@@ -752,6 +764,19 @@ export default function ProfilePage() {
     setShutdownOpen(false);
   };
 
+  const handleMemoryCheck = async () => {
+    setMemoryLoading(true);
+    try {
+      const res = await fetch("/api/system/memory", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setMemoryInfo(await res.json());
+    } catch (err) {
+      setMemoryInfo({ error: err.message });
+    } finally {
+      setMemoryLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const res = await fetch("/api/auth/logout", { method: "POST" });
@@ -825,6 +850,15 @@ export default function ProfilePage() {
               >
                 Import Backup
               </Button>
+              <Button
+                variant="outline"
+                icon="memory"
+                onClick={handleMemoryCheck}
+                loading={memoryLoading}
+                className="w-full sm:w-auto"
+              >
+                Check Size Memory
+              </Button>
               <input
                 ref={importFileRef}
                 type="file"
@@ -837,6 +871,13 @@ export default function ProfilePage() {
               <p className={`text-sm ${dbStatus.type === "error" ? "text-red-500" : "text-green-600 dark:text-green-400"}`}>
                 {dbStatus.message}
               </p>
+            )}
+            {memoryInfo && (
+              <pre className="text-[11px] font-mono text-text-muted whitespace-pre-wrap break-all">
+                {memoryInfo.error
+                  ? `Error: ${memoryInfo.error}`
+                  : memoryLine(memoryInfo)}
+              </pre>
             )}
           </div>
         </Card>
@@ -1645,7 +1686,15 @@ export default function ProfilePage() {
         {/* App Info */}
         <div className="text-center text-xs sm:text-sm text-text-muted py-4">
           <p>{APP_CONFIG.name} v{APP_CONFIG.version}</p>
-          <p className="mt-1">{isRemoteHost ? "Remote Mode" : "Local Mode - All data stored on your machine"}</p>
+          <p className="mt-1">Local Mode - All data stored on your machine</p>
+          <a
+            href="https://github.com/mhiqrambg/9router-mibp-version"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block mt-1 text-[11px] hover:text-primary transition-colors"
+          >
+            MIBP Edition
+          </a>
         </div>
       </div>
 

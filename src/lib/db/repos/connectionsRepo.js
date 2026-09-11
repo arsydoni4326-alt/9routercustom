@@ -8,6 +8,7 @@ const OPTIONAL_FIELDS = [
   "scope", "projectId", "apiKey", "testStatus",
   "lastTested", "lastError", "lastErrorAt", "rateLimitedUntil", "expiresIn", "errorCode",
   "consecutiveUseCount", "idToken", "lastRefreshAt",
+  "proxyRotationStrategy", "proxyPoolIds",
 ];
 
 const MODEL_LOCK_PREFIX = "modelLock_";
