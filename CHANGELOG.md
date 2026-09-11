@@ -1,3 +1,25 @@
+# v0.5.75-arsydoni4326-alt (2026-09-11)
+
+## Features
+- **Freebuff**: add the Freebuff provider (Codebuff/Freebuff backend, `www.codebuff.com`) with OAuth device-flow login, a dedicated executor, model registry and usage tracker — requests register an agent-run, claim a free-tier session (`/api/v1/freebuff/session`, ~1h, bound to one model) and inject the canonical CLI system marker required by the free-mode gate; Claude Fable 5 is offered only via per-session `limitedModelOffers` (capacity-gated, short offer cache)
+- **Freebuff**: add strict model assignment — with `strictModelAssignment` enabled, connections only serve their assigned model (`assignedModel` / `freebuffModel`); model-locked sessions get a 10-min cooldown and daily exhaustion cools the account for up to 26h until the Pacific reset
+- **Proxy Fitness**: add a dashboard page showing per-pool fitness marks (pool × `provider::model` scope, reason, expiry) and egress IP/country, with clear actions per scope, per provider, or all; backed by new APIs `GET /api/proxy-pools/fitness`, `POST /api/proxy-pools/[id]/fitness/clear` and `POST /api/proxy-pools/fitness/clear-all`
+- **Proxy failover**: pool/IP-scoped errors (Freebuff limited-IP tier, OpenCode free 429/403 per-IP limits) now retry through another candidate pool instead of failing the request — executors declare `poolScoped` errors, chatCore rotates the pool set and marks the failed pool unfit (visible and clearable on the Proxy Fitness page)
+- **Pool egress geo probe**: background scheduler samples each pool's egress IP + country through the pool itself (4-endpoint geo chain, rate-safe backoff) with flapping-relay detection; knobs: `POOL_GEO_PROBE_DISABLED`, `GEO_PROBE_URL` plus a runtime "Geo probe" toggle
+- **Diagnostics**: add `GET /api/system/memory` reporting DB/data-dir sizes and in-memory state (fitness pools, geo entries, Freebuff sessions)
+- **Cline**: support API-key auth alongside OAuth (plain Bearer for keys, `workos:` prefix for OAuth tokens) and add verified free-tier models — Muse Spark 1.3, DeepSeek V4 Flash, GLM 5.3 Flash, Solar Pro 4, LongCat 2.0, Laguna S 2.1 — with capability patterns for solar-pro/longcat
+- **Docker**: add a container `HEALTHCHECK` against `/api/health`, switch the build to `npm ci` with a committed `package-lock.json`, exclude `tests/` from the image, and add `docker-build.sh` (interactive run/build-from-source script); publish workflow pins actions to SHA and adds build concurrency, image moved to `mhiqrambhrng/9router-mibp-version`
+
+## Fixes
+- **Cline**: unwrap the `{"success":true,"data":…}` envelope on non-streaming chat completions generically (any gateway nesting an OpenAI body under `data`), so choices/usage resolve at top level instead of surfacing "no completion choices"
+- **Errors**: propagate the executor's own status (429/409 quota gates) to clients instead of a blanket 502, including `resetsAtMs`; drop noisy per-chunk/stream debug counters and stack traces from stream error logs
+- **Proxy pools**: region-aware "smart" pool selection is now scoped per provider/model so unfit pools are skipped, and fixed pool IDs are honored even when the rotation strategy is `none`
+
+## Internal
+- Replace the README with a short fork README (9Router MIBP Version) and remove `README.zh-CN.md`; disable the GitBook Pages workflow (`.disabled`)
+- Add dependencies `dompurify` (with override) and bump `monaco-editor` to ^0.56.0
+- Add unit tests: Freebuff provider/usage/model-assignment, Cline data-envelope + auth header shape, pool geo, proxy pool fitness, and grok-cli OAuth probe updates
+
 # v0.5.75 (2026-09-10)
 
 ## Features
