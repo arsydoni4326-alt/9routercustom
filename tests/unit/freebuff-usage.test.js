@@ -73,7 +73,7 @@ describe("getUsageForProvider(freebuff)", () => {
       resetAt: "2026-08-06T07:00:00.000Z",
       recurring: true,
       unlimited: false,
-      displayName: "DeepSeek V4 Flash",
+      displayName: "DeepSeek V4.1 Flash",
     });
     expect(usage.quotas["openai/gpt-5.6-luna"]).toMatchObject({
       used: 1,
@@ -94,7 +94,7 @@ describe("getUsageForProvider(freebuff)", () => {
         status: "active",
         accessTier: "full",
         instanceId: "inst-1",
-        model: "meta/muse-spark-1.3-contributor",
+        model: "meta/muse-spark-1.2-contributor",
         expiresAt: new Date(Date.now() + 3600000).toISOString(),
         rateLimit: {
           limit: 6,
@@ -112,10 +112,10 @@ describe("getUsageForProvider(freebuff)", () => {
     });
 
     expect(usage.plan).toBe("Freebuff");
-    expect(usage.quotas["meta/muse-spark-1.3-contributor"]).toMatchObject({
+    expect(usage.quotas["meta/muse-spark-1.2-contributor"]).toMatchObject({
       used: 2.4,
       total: 6,
-      displayName: "Muse Spark 1.3",
+      displayName: "Muse Spark 1.2",
     });
   });
 
@@ -150,7 +150,7 @@ describe("getUsageForProvider(freebuff)", () => {
       recurring: true,
       unlimited: false,
       price: 15,
-      displayName: "DeepSeek V4 Flash",
+      displayName: "DeepSeek V4.1 Flash",
     });
     expect(usage.quotas["z-ai/glm-5.3-flash"]).toMatchObject({
       used: 15,
@@ -297,14 +297,14 @@ describe("parseQuotaData(freebuff)", () => {
           used: 4.1,
           total: 6,
           resetAt: "2026-08-06T07:00:00.000Z",
-          displayName: "DeepSeek V4 Flash",
+          displayName: "DeepSeek V4.1 Flash",
         },
       },
     });
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      name: "DeepSeek V4 Flash",
+      name: "DeepSeek V4.1 Flash",
       modelKey: "deepseek/deepseek-v4-flash",
       used: 4.1,
       total: 6,

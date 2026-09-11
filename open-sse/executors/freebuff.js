@@ -117,10 +117,11 @@ function injectEndTurnTool(body) {
 // base2 roots during the transition).
 //
 // Withdrawn upstream models (deepseek-v4-pro, minimax-m3, stealth/ox-alpha,
-// google/gemini-3.8-flash) are deliberately absent: no new session can be
-// admitted on them, so mapping them would only hide a dead pick behind a
-// wrong root. z-ai/glm-5.2 stays mapped (referral-earned accounts can still
-// run it) even though it is not a standing picker row.
+// google/gemini-3.8-flash, meta/muse-spark-1.3-contributor) are deliberately
+// absent: no new session can be admitted on them, so mapping them would only
+// hide a dead pick behind a wrong root. z-ai/glm-5.2 stays mapped
+// (referral-earned accounts can still run it) even though it is not a
+// standing picker row.
 const FREE_ROOT_AGENT_BY_MODEL = {
   "deepseek/deepseek-v4-flash": "base3-free-deepseek-flash",
   "z-ai/glm-5.2": "base3-free-glm",
@@ -128,7 +129,7 @@ const FREE_ROOT_AGENT_BY_MODEL = {
   "mimo/mimo-v2.5": "base3-free-mimo",
   "openai/gpt-5.6-luna": "base3-free-luna",
   "upstage/solar-pro4": "base3-free-solar-pro4",
-  "meta/muse-spark-1.3-contributor": "base3-free-muse-spark-1-3",
+  "meta/muse-spark-1.2-contributor": "base3-free-muse-spark",
   "anthropic/claude-fable-5": "base3-free-fable",
 };
 
@@ -301,28 +302,7 @@ async function requestSession(token, model, proxyOptions) {
     err.status = 401;
     throw err;
   }
-  if (!response.ok) {
-    const err = new Error(`Freebuff session request failed: ${response.status} ${JSON.stringify(data).slice(0, 200)}`);
-    err.status = response.status;
-    throw err;
-  }
-
   const status = data?.status;
-  if (status === "active") {
-    const parsedExp = Date.parse(data.expiresAt || "");
-    const entry = {
-      instanceId: data.instanceId,
-      expiresAt: Number.isFinite(parsedExp) ? parsedExp : Date.now() + SESSION_DEFAULT_TTL_MS,
-    };
-    sessionCache.set(sessionCacheKey(token, model), entry);
-    return { instanceId: data.instanceId, status: "active" };
-  }
-  if (status === "none") {
-    // Not session-gated right now — proceed without an instance id; a 428 on
-    // chat tells us the admission gate actually requires a session.
-    return { instanceId: null, status: "none" };
-  }
-
   const GATE_MESSAGES = {
     country_blocked: "Freebuff is not available in your region (country blocked).",
     banned: "Your Freebuff account has been banned.",
@@ -333,6 +313,10 @@ async function requestSession(token, model, proxyOptions) {
     model_unavailable: "This model is not available on Freebuff right now.",
     premium_slot_taken: "Freebuff premium slot is taken — try another model.",
   };
+  // Gate statuses ride BOTH 200 (pre-join refusals) and 4xx — the backend
+  // sends spend_limited/rate_limited as HTTP 429 with the gate in the body.
+  // Handle them BEFORE the generic !response.ok throw so exhaustion carries
+  // resetsAtMs (skip-until-reset) instead of a bare status.
   if (GATE_MESSAGES[status]) {
     const err = new Error(data?.message ? `${GATE_MESSAGES[status]} ${data.message}` : GATE_MESSAGES[status]);
     // Freebucks / session-allowance exhaustion is a hard stop until the daily
@@ -355,6 +339,28 @@ async function requestSession(token, model, proxyOptions) {
     }
     throw err;
   }
+
+  if (!response.ok) {
+    const err = new Error(`Freebuff session request failed: ${response.status} ${JSON.stringify(data).slice(0, 200)}`);
+    err.status = response.status;
+    throw err;
+  }
+
+  if (status === "active") {
+    const parsedExp = Date.parse(data.expiresAt || "");
+    const entry = {
+      instanceId: data.instanceId,
+      expiresAt: Number.isFinite(parsedExp) ? parsedExp : Date.now() + SESSION_DEFAULT_TTL_MS,
+    };
+    sessionCache.set(sessionCacheKey(token, model), entry);
+    return { instanceId: data.instanceId, status: "active" };
+  }
+  if (status === "none") {
+    // Not session-gated right now — proceed without an instance id; a 428 on
+    // chat tells us the admission gate actually requires a session.
+    return { instanceId: null, status: "none" };
+  }
+
   throw new Error(`Freebuff session rejected (${status || response.status}): ${JSON.stringify(data).slice(0, 200)}`);
 }
 

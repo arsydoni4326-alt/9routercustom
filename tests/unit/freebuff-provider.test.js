@@ -327,6 +327,53 @@ describe("freebuff session pre-flight", () => {
     }
   });
 
+  it("handles spend_limited arriving as HTTP 429 (the actual wire shape) — still skips until reset", async () => {
+    const resetAt = "2099-01-01T00:00:00.000Z";
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          status: "spend_limited",
+          accessTier: "full",
+          upgrade: { url: "https://freebuff.com/plans", message: "Get 150 Freebucks a day from $8/mo." },
+          message: "This account hit today's hard usage cap.",
+          resetAt,
+        },
+        { status: 429, ok: false },
+      ),
+    );
+    await expect(requestSession("tok-1", "deepseek/deepseek-v4-flash", null)).rejects.toMatchObject({
+      status: 429,
+      resetsAtMs: Date.parse(resetAt),
+    });
+  });
+
+  it("handles rate_limited arriving as HTTP 429 with only retryAfterMs", async () => {
+    const retryAfterMs = 15 * 60 * 1000;
+    fetchMock.mockResolvedValue(
+      jsonResponse({ status: "rate_limited", retryAfterMs, message: "limit" }, { status: 429, ok: false }),
+    );
+    const before = Date.now();
+    try {
+      await requestSession("tok-1", "deepseek/deepseek-v4-flash", null);
+      throw new Error("should have rejected");
+    } catch (error) {
+      expect(error.status).toBe(429);
+      expect(error.resetsAtMs).toBeGreaterThanOrEqual(before + retryAfterMs - 1000);
+      expect(error.resetsAtMs).toBeLessThanOrEqual(before + retryAfterMs + 1000);
+    }
+  });
+
+  it("keeps an unknown HTTP 429 as a generic failure (no gate status → no resetsAtMs)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: "nope" }, { status: 429, ok: false }));
+    try {
+      await requestSession("tok-1", "deepseek/deepseek-v4-flash", null);
+      throw new Error("should have rejected");
+    } catch (error) {
+      expect(error.status).toBe(429);
+      expect(error.resetsAtMs).toBeUndefined();
+    }
+  });
+
   it("rate_limited without any reset hint stays a plain error (transient cooldown path)", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ status: "rate_limited", message: "busy" }));
     try {
@@ -473,10 +520,11 @@ describe("freebuff run registration", () => {
     expect(rootAgentIdForModel("mimo/mimo-v2.5")).toBe("base3-free-mimo");
     expect(rootAgentIdForModel("openai/gpt-5.6-luna")).toBe("base3-free-luna");
     expect(rootAgentIdForModel("upstage/solar-pro4")).toBe("base3-free-solar-pro4");
-    expect(rootAgentIdForModel("meta/muse-spark-1.3-contributor")).toBe("base3-free-muse-spark-1-3");
+    expect(rootAgentIdForModel("meta/muse-spark-1.2-contributor")).toBe("base3-free-muse-spark");
     expect(rootAgentIdForModel("anthropic/claude-fable-5")).toBe("base3-free-fable");
     // Withdrawn upstream models are unmapped — they fall back, and the backend
     // refuses their sessions anyway.
+    expect(rootAgentIdForModel("meta/muse-spark-1.3-contributor")).toBe("base2-free");
     expect(rootAgentIdForModel("deepseek/deepseek-v4-pro")).toBe("base2-free");
     expect(rootAgentIdForModel("minimax/minimax-m3")).toBe("base2-free");
     expect(rootAgentIdForModel("some/unknown-model")).toBe("base2-free");
